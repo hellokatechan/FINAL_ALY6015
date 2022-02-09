@@ -57,27 +57,29 @@ plot(model_1)
 #model output 
 summary(model_1)
 colnames(clean_data)
+
+#cleaning up the NAs in perperation for the regularized regression 
+colSums(is.na(clean_data))
+clean_data$latest_inmate_population[is.na(clean_data$latest_inmate_population)] <- round(mean(clean_data$latest_inmate_population, na.rm = TRUE))
+sum(is.na(clean_data$latest_inmate_population))
+
 #regularized regression 
 #split data into train and test set 
 set.seed(3456) 
 trainIndex <- createDataPartition(clean_data$positivity_percentage, p=0.7,list = FALSE, times = 1)
 train <- clean_data[ trainIndex,] 
 test <- clean_data[-trainIndex,] 
-head(test)
-head(clean_data)
-dim(clean_data)
+
 #preparing for glmnet() since it doesn't take Y~X format
-X <- model.matrix(positivity_percentage~., train)[,-1] 
-Y <- log(train$positivity_percentage)
+colnames(train)
+X_train <- model.matrix(positivity_percentage~., train)[,-1] 
+Y_train <- log(train$positivity_percentage)
 
+X_test <- model.matrix(positivity_percentage~., test)[,-1]
+Y_test <- log(test$positivity_percentage)
 
-
-
-
-
-
-
-
+set.seed(123)
+ridge<- cv.glmnet(x=X_train,y=Y_train, alpha = 0)
 
 
 
