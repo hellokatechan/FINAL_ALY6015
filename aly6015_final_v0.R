@@ -9,6 +9,7 @@ library(gplots)
 library(knitr)
 library(glmnet)
 library(usethis)
+library(caret)
 #rm(list = ls()) 
 #data dictionary https://github.com/nytimes/covid-19-data/tree/master/prisons 
 data <- read_csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/prisons/facilities.csv')
@@ -44,17 +45,32 @@ new_data <- data %>%
   filter(facility_type == "Federal prison" | facility_type== "State prison", 
          is.na(max_inmate_population_2020)==FALSE) %>% 
   mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020)
-new_data <- new_data[, -1] #delete column 5
 
+#remove unnecessary columns
+new_data <- new_data[, -1:-2]
+new_data <- new_data[, -2:-4]
+new_data <- new_data[, -3:-4]
+new_data <- new_data[, -9]
+colnames(new_data)
+
+# linear regression 
+#fit linear regression model into data
 model_1 <- lm(positivity_percentage ~ max_inmate_population_2020 + facility_type,
               data = new_data)
-
+#plot 4 graphs 
+plot(model_1)
+#model output 
 summary(model_1)
-head(model_1)
 
+#regularized regression 
+#split data into train and test set 
+set.seed(3456) 
+trainIndex <- createDataPartition(new_data$positivity_percentage, p=0.7,list = FALSE, times = 1)
+train <- data[ trainIndex,] 
+test <- data[-trainIndex,] 
 
-######
-
+#preparing for glmnet() since it doesn't take Y~X format
+lasso <- cv.glmnet(x,y,alpha =1)
 
 
 
