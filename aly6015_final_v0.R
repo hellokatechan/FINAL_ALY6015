@@ -45,24 +45,13 @@ new_data <- data %>%
          is.na(max_inmate_population_2020)==FALSE) %>% 
   mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020)
 new_data <- new_data[, -1] #delete column 5
-new_data <- new_data[,-15]
-head(new_data)
-colnames(new_data)
 
 model_1 <- lm(positivity_percentage ~ max_inmate_population_2020 + facility_type,
               data = new_data)
 
 summary(model_1)
 
-set.seed(3456) 
-trainIndex <- createDataPartition(new_data$positivity_percentage, p = 0.7, list = FALSE, times = 1) 
-train <- data[ trainIndex,] 
-test <- data[-trainIndex,] 
-head(train)
-X <- model.matrix(new_data$positivity_percentage~., train)[,-1] # one perk for using model.matrix is that it would auto dummy encode the categorical variables
-Y <- log(train$positivity_percentage)
 
-str(prison_with_percentage)
 ######
 
 
