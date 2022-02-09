@@ -46,31 +46,29 @@ new_data <- data %>%
          is.na(max_inmate_population_2020)==FALSE) %>% 
   mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020)
 
-#remove unnecessary columns
-new_data <- new_data[, -1:-2]
-new_data <- new_data[, -2:-4]
-new_data <- new_data[, -3:-4]
-new_data <- new_data[, -9]
-colnames(new_data)
-
+clean_data <-dplyr::select(new_data, -c("nyt_id","facility_name","facility_city","total_officer_cases","total_officer_deaths","note","facility_lat","facility_lng","facility_county_fips"))
+colnames(clean_data)
 # linear regression 
 #fit linear regression model into data
 model_1 <- lm(positivity_percentage ~ max_inmate_population_2020 + facility_type,
-              data = new_data)
+              data = clean_data)
 #plot 4 graphs 
 plot(model_1)
 #model output 
 summary(model_1)
-
+colnames(clean_data)
 #regularized regression 
 #split data into train and test set 
 set.seed(3456) 
-trainIndex <- createDataPartition(new_data$positivity_percentage, p=0.7,list = FALSE, times = 1)
-train <- data[ trainIndex,] 
-test <- data[-trainIndex,] 
-
+trainIndex <- createDataPartition(clean_data$positivity_percentage, p=0.7,list = FALSE, times = 1)
+train <- clean_data[ trainIndex,] 
+test <- clean_data[-trainIndex,] 
+head(test)
+head(clean_data)
+dim(clean_data)
 #preparing for glmnet() since it doesn't take Y~X format
-lasso <- cv.glmnet(x,y,alpha =1)
+X <- model.matrix(positivity_percentage~., train)[,-1] 
+Y <- log(train$positivity_percentage)
 
 
 
