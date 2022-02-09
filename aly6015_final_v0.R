@@ -50,6 +50,7 @@ model_1 <- lm(positivity_percentage ~ max_inmate_population_2020 + facility_type
               data = new_data)
 
 summary(model_1)
+head(model_1)
 
 
 ######
