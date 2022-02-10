@@ -46,8 +46,10 @@ new_data <- data %>%
          is.na(max_inmate_population_2020)==FALSE) %>% 
   mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020)
 
-clean_data <-dplyr::select(new_data, -c("nyt_id","facility_name","facility_city","total_officer_cases","total_officer_deaths","note","facility_lat","facility_lng","facility_county_fips"))
+clean_data <-dplyr::select(new_data, -c("nyt_id","facility_name","facility_city","total_officer_cases","total_officer_deaths","note","facility_lat","facility_lng","facility_county_fips","facility_county","facility_state"))
 colnames(clean_data)
+
+str(clean_data)
 # linear regression 
 #fit linear regression model into data
 model_1 <- lm(positivity_percentage ~ max_inmate_population_2020 + facility_type,
@@ -62,24 +64,55 @@ colnames(clean_data)
 colSums(is.na(clean_data))
 clean_data$latest_inmate_population[is.na(clean_data$latest_inmate_population)] <- round(mean(clean_data$latest_inmate_population, na.rm = TRUE))
 sum(is.na(clean_data$latest_inmate_population))
-
+head(clean_data)
 #regularized regression 
 #split data into train and test set 
 set.seed(3456) 
 trainIndex <- createDataPartition(clean_data$positivity_percentage, p=0.7,list = FALSE, times = 1)
 train <- clean_data[ trainIndex,] 
 test <- clean_data[-trainIndex,] 
-
+head(train)
 #preparing for glmnet() since it doesn't take Y~X format
-colnames(train)
-X_train <- model.matrix(positivity_percentage~., train)[,-1] 
-Y_train <- log(train$positivity_percentage)
+
+X_train <- model.matrix(positivity_percentage~., train)[,-1]
+Y_train <- train$positivity_percentage
+head(X_train)
 
 X_test <- model.matrix(positivity_percentage~., test)[,-1]
-Y_test <- log(test$positivity_percentage)
+Y_test <- test$positivity_percentage
+head(X_train)
+ridge<- cv.glmnet(x=X_train, y=Y_train, alpha = 0)
 
-set.seed(123)
-ridge<- cv.glmnet(x=X_train,y=Y_train, alpha = 0)
+plot(ridge)
+
+ridge$lambda.min 
+log(ridge$lambda.min)
+
+ridge$lambda.1se
+log(ridge$lambda.1se)
+
+ridge.model.min <- glmnet(X_train,Y_train,alpha = 0, lambda = ridge$lambda.min)
+ridge.model.min
+
+coef(ridge.model.min)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
