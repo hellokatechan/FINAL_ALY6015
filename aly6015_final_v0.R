@@ -11,6 +11,8 @@ library(glmnet)
 library(usethis)
 library(caret)
 #rm(list = ls()) 
+
+
 #data dictionary https://github.com/nytimes/covid-19-data/tree/master/prisons 
 data <- read_csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/prisons/facilities.csv')
 
@@ -46,19 +48,19 @@ new_data <- data %>%
          is.na(max_inmate_population_2020)==FALSE) %>% 
   mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020)
 
-clean_data <-dplyr::select(new_data, -c("nyt_id","facility_name","facility_city","total_officer_cases","total_officer_deaths","note","facility_lat","facility_lng","facility_county_fips","facility_county","facility_state"))
+#remove unnecessary columns
+clean_data <-dplyr::select(new_data, -c("nyt_id","facility_name","facility_city","total_officer_cases","total_officer_deaths","note","facility_lat","facility_lng","facility_county_fips","facility_county","facility_state","total_inmate_deaths"))
 colnames(clean_data)
 
-str(clean_data)
-# linear regression 
+# linear regression begin
 #fit linear regression model into data
-model_1 <- lm(positivity_percentage ~ max_inmate_population_2020 + facility_type,
+model_1 <- lm(positivity_percentage ~ latest_inmate_population + facility_type,
               data = clean_data)
-#plot 4 graphs 
+#plot 4 graphs and check to see if model follows the linear regression assumption 
 plot(model_1)
 #model output 
 summary(model_1)
-colnames(clean_data)
+
 
 #cleaning up the NAs in perperation for the regularized regression 
 colSums(is.na(clean_data))
@@ -77,7 +79,7 @@ head(train)
 X_train <- model.matrix(positivity_percentage~., train)[,-1]
 Y_train <- train$positivity_percentage
 head(X_train)
-
+colnames(clean_data)
 X_test <- model.matrix(positivity_percentage~., test)[,-1]
 Y_test <- test$positivity_percentage
 head(X_train)
@@ -96,15 +98,15 @@ ridge.model.min
 
 coef(ridge.model.min)
 
+dim(clean_data)
+sum(is.na(clean_data$latest_inmate_population))
 
 
 
+sum(is.na(clean_data$max_inmate_population_2020))
 
 
-
-
-
-
+summary()
 
 
 
