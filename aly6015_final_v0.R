@@ -53,7 +53,6 @@ clean_data <-dplyr::select(new_data, -c("nyt_id","facility_name","facility_city"
 colnames(clean_data)
 
 
-
 # linear regression begin
 # dummy coding and prep for lm()
 facility_type<-factor(facility_type, c(0,1), labels=c('Federal prison', 'State prison'))
