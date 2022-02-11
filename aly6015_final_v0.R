@@ -63,6 +63,9 @@ model_1 <- lm(positivity_percentage ~ latest_inmate_population + facility_type,
 plot(model_1)
 #model output 
 summary(model_1)
+#calculate the RMSE for lm() model and use it to compare with regularized regression 
+# the smaller the RMSE, the better model fit 
+sqrt(mean(model_1$residuals^2))
 
 #cleaning up the NAs in perperation for the regularized regression 
 colSums(is.na(clean_data))
@@ -76,42 +79,87 @@ set.seed(3456)
 trainIndex <- createDataPartition(clean_data$positivity_percentage, p=0.7,list = FALSE, times = 1)
 train <- clean_data[ trainIndex,] 
 test <- clean_data[-trainIndex,] 
-head(train)
-#preparing for glmnet() since it doesn't take Y~X format
 
+#preparing for glmnet() since it doesn't take Y~X format
 X_train <- model.matrix(positivity_percentage~., train)[,-1]
 Y_train <- train$positivity_percentage
 
 X_test <- model.matrix(positivity_percentage~., test)[,-1]
 Y_test <- test$positivity_percentage
-head(X_train)
+
+#use cv.glmnet to estimate lambda.min and lambda 1se, the optimal value of lambda
 ridge<- cv.glmnet(x=X_train, y=Y_train, alpha = 0)
 
 plot(ridge)
 
+#lambda for this min MSE
 ridge$lambda.min 
 log(ridge$lambda.min)
-
+##largest value of lambda that is 1 standard error from lambda min 
 ridge$lambda.1se
 log(ridge$lambda.1se)
 
+#fit model to train dataset using lambda.min 
+#use this to compare with the model with lambda.1se later
 ridge.model.min <- glmnet(X_train,Y_train,alpha = 0, lambda = ridge$lambda.min)
 ridge.model.min
-
+#show regression coefficients 
 coef(ridge.model.min)
 
+#fit model to train dataset using lambda.1se 
+#use this to compare with the model with lambda.min
+ridge.model.1se <- glmnet(X_train,Y_train,alpha = 0, lambda = ridge$lambda.1se)
+ridge.model.1se
+
+#RMSE on train dataset
+ridge.preds.train <- predict(ridge.model.1se, newx = X_train)
+ridge.train.rmse <- rmse(Y_train, ridge.preds.train)
+ridge.train.rmse
+
+#RMSE on test dataset
+ridge.preds.test <- predict(ridge.model.1se, newx = X_test)
+ridge.test.rmse <- rmse(Y_test, ridge.preds.test)
+ridge.test.rmse
+
+#LASSO 
+set.seed(3456)
+cv.lasso <- cv.glmnet(X_train,Y_train,nfolds = 10)
+
+plot(cv.lasso)
+
+#lambda for this min MSE
+cv.lasso$lambda.min 
+log(cv.lasso$lambda.min)
+#largest value of lambda that is 1 standar error from lambda min 
+cv.lasso$lambda.1se
+log(cv.lasso$lambda.1se)
+
+#fit model to train dataset using lambda.min 
+#use this to compare with the model with lambda.1se later
+model.min <- glmnet(X_train,Y_train,alpha = 1, lambda = cv.lasso$lambda.min)
+model.min
+
+#show regression coefficients 
+coef(model.min)
+
+#fit model to train dataset using lambda.1se 
+#use this to cmpare with the model with lambda.min (see line XX)
+model.1se <- glmnet(X_train,Y_train,alpha = 1, lambda = cv.lasso$lambda.1se)
+model.1se
+
+#show regression coefficients
+coef(model.1se)
 
 
+#RMSE on train dataset
+preds.train <- predict(model.1se, newx = X_train)
+train.rmse <- rmse(Y_train, preds.train)
+train.rmse
 
-
-
-
-
-
-
-
-
-
+#RMSE on test dataset
+preds.test <- predict(model.1se, newx = X_test)
+test.rmse <- rmse(Y_test, preds.train)
+test.rmse
 
 
 
