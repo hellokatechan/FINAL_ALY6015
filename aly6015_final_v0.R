@@ -52,7 +52,11 @@ new_data <- data %>%
 clean_data <-dplyr::select(new_data, -c("nyt_id","facility_name","facility_city","total_officer_cases","total_officer_deaths","note","facility_lat","facility_lng","facility_county_fips","facility_county","facility_state","total_inmate_deaths"))
 colnames(clean_data)
 
+
+
 # linear regression begin
+# dummy coding and prep for lm()
+facility_type<-factor(facility_type, c(0,1), labels=c('Federal prison', 'State prison'))
 #fit linear regression model into data
 model_1 <- lm(positivity_percentage ~ latest_inmate_population + facility_type,
               data = clean_data)
@@ -61,12 +65,12 @@ plot(model_1)
 #model output 
 summary(model_1)
 
-
 #cleaning up the NAs in perperation for the regularized regression 
 colSums(is.na(clean_data))
 clean_data$latest_inmate_population[is.na(clean_data$latest_inmate_population)] <- round(mean(clean_data$latest_inmate_population, na.rm = TRUE))
 sum(is.na(clean_data$latest_inmate_population))
 head(clean_data)
+
 #regularized regression 
 #split data into train and test set 
 set.seed(3456) 
@@ -78,8 +82,7 @@ head(train)
 
 X_train <- model.matrix(positivity_percentage~., train)[,-1]
 Y_train <- train$positivity_percentage
-head(X_train)
-colnames(clean_data)
+
 X_test <- model.matrix(positivity_percentage~., test)[,-1]
 Y_test <- test$positivity_percentage
 head(X_train)
@@ -98,15 +101,6 @@ ridge.model.min
 
 coef(ridge.model.min)
 
-dim(clean_data)
-sum(is.na(clean_data$latest_inmate_population))
-
-
-
-sum(is.na(clean_data$max_inmate_population_2020))
-
-
-summary()
 
 
 
