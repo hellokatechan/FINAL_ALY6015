@@ -6,23 +6,317 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+```{r}
 
-## R Markdown
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(ggplot2)
+library(gplots)
+library(gtools)
+library(leaps)
+library(zoo)
+library(caret)
+library(DescTools)
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
 ```
 
-## Including Plots
+# **Covid Rates in Prison Facilities**  
+**Group 1: Sze Chan, Kerri Cluff, Anne Nanovic**  
+**ALY 6015**   
 
-You can also embed plots, for example:
+**February, 2022**  
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+Our analysis seeks to better understand if and why some prison facilities performed better in keeping COVID infection rates low during the period of March 2020 - March 2021. Our goal is to understand which variables had the most impact on covid infection rates. While this is a fairly simple analysis, limited by the variables at hand, this type of learning could help in understanding how to keep inmates safer and how to design or redesign better facilities moving forward. 
+
+We began with a linear regression analysis using the percentage of positive cases (total_inmate_cases/latest_inmate_population). Our independent variables would be a combination of qualitative data, such as latest_inmate_population, and categorical data such as facility_type and facility_sizes. 
+
+Upon detailed investigation, it became clear that this approach would not work due to significant, localized gaps in the data, and the data itself. A new regression was run looking at percentage_positive (calculated with the max_inmate_population) against a very select number of facility types and max_inmate_population. This did not produce statistically significant results. Regularization via Lasso and Ridge did not yield helpful insights as the number of independent variables was so small. Finally, a regression was run using the square root of the dependent variable.
+
+We ran multiple one-way ANOVA to test for differences in means of three or more variables. 
+
+1. The independent variables (factors) are facility_sizes and we are testing the difference in the positivity_percentage.
+2. The independent variables (factors) are facility_types and we are testing the difference in the positivity_percentage.
+3. The independent variables (factors) are a select number of states and we are testing the difference in the positivity_percentage.
+
+This paper presents the results of these models and tests.
+
+# **The Data**  
+
+```{r, include=FALSE}
+data <- read_csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/prisons/facilities.csv')
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+Our data set contains a snapshot of 2639 prisons, jails, and detention facilities in the period of March 2020 - March 2021. It provides a summary of sixteen qualitative and quantitative variables over this time period, with data including location, facility type, size, and the number of coronavirus infections and deaths in inmate and staff populations.
+
+Below is a summary of the numerical and integer values we will be investigated. The data indicates that a large number of values are missing in latest- and max-inmate populations.
+
+
+```{r}
+
+data %>% 
+  select(latest_inmate_population, max_inmate_population_2020, total_inmate_cases,total_inmate_deaths,total_officer_cases,total_officer_deaths) %>% 
+  summary()
+
+```
+
+A new variable, indicating the percentage of inmates who had covid (positivity_percentage) is added.  
+
+```{r}
+prison_with_percentage <- data %>% 
+  mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020)
+
+
+summary(prison_with_percentage$positivity_percentage)
+
+```
+```{r}
+
+hist(prison_with_percentage$positivity_percentage, col = "forest green", main = "Covid Positivity Rates in Facitlities", xlab = "Percent Positive")
+``` 
+
+This variable is not normally distributed. The square root is used to normalize the right skewed distribution. 
+
+```{r}
+
+sqrt_positivity <- prison_with_percentage %>% 
+  mutate(sqrt = sqrt(positivity_percentage)) 
+
+hist(sqrt_positivity$sqrt, col = "dark orange", main = "Covid Positivity Rates in Facitlities", xlab = "Square Root of Percent Positive")
+```
+
+A facility size variable was created to get a better sense of the sizes of different facility types and for possible use in analysis. Because the latest_inmate_population was not a reliable indicator of the average population throughout the year (ie in a number of cases, there were more total_inmate_cases than the latest_inmate_population), the max_inmate_population_2020 was used to assess facility size. Unfortunately, the data is only available for Federal Prisons and State Prisons. Our linear regression analysis will need to pivot to comparing these two facility types instead of comparing all types.
+
+```{r}
+Facility_Size <- prison_with_percentage %>% 
+  mutate(facility_sizes =
+           cut(max_inmate_population_2020,breaks = c(0,500,1500,3000,Inf)))  %>% 
+  mutate(facility_sizes = factor(facility_sizes, labels = 
+                                   c("small","medium","large","XL"))) 
+
+table(Facility_Size$facility_sizes, useNA="ifany")
+
+table(Facility_Size$facility_type, Facility_Size$facility_sizes, useNA = "ifany") %>% 
+  kable()
+```
+
+# **Linear Regression**
+A new data set containing only these two facility types is created. 
+```{r}
+new_data <- data %>% 
+  filter(facility_type == "Federal prison" | facility_type== "State prison", 
+         is.na(max_inmate_population_2020)==FALSE) %>% 
+    mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020)
+  
+model_1 <- lm(positivity_percentage ~ max_inmate_population_2020 + facility_type,
+              data = new_data)
+
+summary(model_1)
+```
+
+Linear regression interpretation
+
+Base on the summary(model_1) outcome, we can generate the linear equation as follows: 
+
+ y = 0.31 + 7.39e-06x1 -.02x2
+ 
+x1 is max_inmate_population_2020 and x2 is facility_type
+ 
+Setting our significance level to 95%, alpha =0.05, we then compare the p-value against alpha = 0.05. Both max_inmate_population_2020 and facility_type have a p-value that are smaller than 0.05. Using this test, neither independent variable shows a statistically significant relationship with the dependent variable. 
+
+The preliminary results was not what we expected as we believe that facility type and size are relevant to covid rates in prison. Ideally, more robust data, including additional facility types, would be acquired to run this analysis on. 
+
+As a next step, we would like to explore other regression methods, such as regularized regression, to test the relationship between the variables. We suspected that one or more assumptions of linear regression was not met, resulting in the high p-values. With regularized regression, it is more forgiving when it comes to the assumptions. Lastly with regularized regression, we can use additional variables and fine tune the model with the help of ridge and lasso. 
+
+However, ridge and lasso did not yield helpful input, likely due to the small number of independent variables used. 
+
+As seen in the previous histogram, the dependent variable was not normally distributed unless a square root of it was used. This will be applied to the regression. The results below are statistically significant.  
+
+```{r, echo=FALSE}
+
+sqrt_data <- data %>% 
+  filter(facility_type == "Federal prison" | facility_type== "State prison", 
+         is.na(max_inmate_population_2020)==FALSE) %>% 
+    mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020, sqrt_p = sqrt(positivity_percentage))
+  
+model_2 <- lm(sqrt_p ~ max_inmate_population_2020 + facility_type,
+              data = sqrt_data)
+
+summary(model_2)
+```
+Base on the summary(model_2) outcome, we can generate the linear equation as follows: 
+
+ sqrt(y) = 0.50 + 2.21e-05x1 - 0.04e-02x2   
+ 
+Recall that the null hypothesis for linear regression is that all coefficients are zero in the model. To test the hypothesis, we used the overall p-value generated from the summary() output. A p-value of 0.006 means reject the null hypothesis.There is a statistically significant relationship between the independent and dependent variables. 
+
+R-squared/coefficient of determination is a measure of strength between the model and the dependent variable. With R-squared of 0.012, there must be many additional variables effecting the positivity rates. 
+
+Next, we use residual plots check if the assumptions are met for the linear regression model.
+```{r}
+plot(model_2)
+```
+```{r, include = FALSE}
+sqrt(mean(model_2$residuals^2))
+```
+Residuals vs fitted graph
+One of the linear regression assumptions states that there should be a non-linear relationship among the independent variables.
+
+To see if our model follows this assumption, we look at the residuals vs fitted graph. Residuals bounce around the horizontal zero and there’s no distinct pattern. The residual vs fitted graph tells us that this model meets the non-linear assumption. 
+
+QQ Plot
+We used QQ plot to test if residuals follow the assumption of normal distribution. The heavy tails on the QQ plot below suggest that the residuals are not normally distributed, resulting in failure of linear regression assumption. 
+
+Residuals vs Leverage
+This plot helps us to identify if there’re any influential points that may affect the model. There are no data points that have a high Cook’s distance score, meaning that we don’t need to exclude any points. 
+
+RMSE
+Lastly, how well dose the model fit the observed values vs fitted values? A good rule of thumb for acceptable RMSE is between 0.2 and 0.5. With 0.24 RMSE, we can say that the model is okay fit to the data. 
+
+### Sub-setting the Data
+
+Ideally, a model would contain all the data. In this case, however, the model has become very difficult to interpret. The following regressions and graph seperate the federal and state prison data into separate data sets and compares their linear regressions.
+```{r}
+federal_prison <- data %>% 
+  filter(facility_type == "Federal prison", 
+         is.na(max_inmate_population_2020)==FALSE) %>% 
+    mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020, sqrt_p = sqrt(positivity_percentage))
+```
+
+```{r}
+federal_fit <- lm(positivity_percentage ~ max_inmate_population_2020, data=federal_prison)
+summary(federal_fit)
+```
+```{r}
+state_prison <- data %>% 
+  filter(facility_type == "State prison", 
+         is.na(max_inmate_population_2020)==FALSE) %>% 
+    mutate(positivity_percentage = total_inmate_cases/max_inmate_population_2020, sqrt_p = sqrt(positivity_percentage))
+```
+```{r}
+state_fit <- lm(positivity_percentage ~ max_inmate_population_2020, data=state_prison)
+summary(state_fit)
+```
+```{r}
+ggplot(new_data, aes(x=abs(max_inmate_population_2020), y=positivity_percentage, color=facility_type))+geom_point(alpha=0.3)+ geom_abline(intercept = 0.2814, slope = 1.175e-05, color="blue")+ geom_abline(intercept = 0.3499, slope=-1.660e-05, color='red')+labs(title="Facility Types and Positivity Percentage", y="Covid Positivity Percentage",x="Number of Inmates")
+```
+The above graph shows that as the size of the prison grows, federal prisons perform better in terms of keeping covid rates lower. As an inmate, it is better to be in a state prison until the size exceeds approximately 2200 inmates. This is a fairly weak assertion, however, because the slopes of the regression lines are not dramatically positive and negative, and more critically, there are far fewer data points for federal prisons. It is possible that a few outliers or highly influential points are skewing the results.
+
+# **ANOVA**
+
+ **Test 1**  
+
+Our first anova compares the state and federal prisons. 
+
+Null hypothesis: the means of positivity_percentage for federal prison and state prison are the same.  
+Alternative hypothesis: the means are not the same.  
+
+```{r}
+type_anova <- aov(positivity_percentage ~ facility_type, data = new_data)
+summary(type_anova)
+
+plotmeans(positivity_percentage ~ facility_type, data = new_data)
+```
+While the graph shows that state prison has a lower mean than federal prison, we cannot conclude that there is a difference in mean. To find out if there's a significant difference between the two groups, we looked at the p-value. Both variable's p-value are greater than alpha 0.05, meaning that we do not have enough evidence to reject the null hypothesis at that level (95%).  
+**Test 2 **  
+
+Our second anova compares different facility sizes. 
+
+Null hypothesis: the means of positivity_percentage for small, medium, large, and XL sized facilities are the same.  
+Alternative hypothesis: the means are not the same.
+
+```{r}
+size_anova <- aov(positivity_percentage ~ facility_sizes, data = Facility_Size)
+summary(size_anova)
+
+```
+
+
+```{r}
+
+plotmeans(positivity_percentage ~ facility_sizes, data = Facility_Size)
+
+facility_boxplot <-Facility_Size %>% 
+ggplot(aes(x=facility_sizes, y=positivity_percentage,fill=facility_sizes)) +
+geom_boxplot() + geom_jitter(width=0.1,alpha=0.2)+theme(legend.position = "none")
+
+facility_boxplot
+```
+
+To find out if there's a significant difference between factors, we looked at the p-value. The p-value is more than alpha 0.05, meaning that we do have enough evidence to reject the null hypothesis. There is a difference in positivity percentages between the different sized facilities. 
+
+**Test 3 **  
+
+Our third anova compares different states. 
+
+Null hypothesis: the means of positivity_percentage for West Virginia, Wisconsin, Florida, and New York are the same.  
+Alternative hypothesis: the means are not the same. 
+
+```{r, include = FALSE}
+state_data <- prison_with_percentage %>% 
+  filter(facility_state == "West Virginia" | facility_state == "Wisconsin" | facility_state =="Florida" | facility_state =="New York")
+```
+
+```{r}
+state_anova <- aov(positivity_percentage ~ facility_state, data = state_data)
+summary(state_anova)
+```
+
+```{r}
+plotmeans(positivity_percentage ~ facility_state, data = state_data)
+```
+```{r}
+
+
+
+state_boxplot <-state_data %>% 
+ggplot(aes(x=facility_state, y=positivity_percentage,fill=facility_state)) +
+geom_boxplot() + geom_jitter(width=0.1,alpha=0.2)+theme(legend.position = "none")
+
+state_boxplot
+
+```
+
+In this final anova, the results mirror the plot in that our p value is small enough to reject the null hypothesis that the positivity_percentage means are not the same across the selected states. 
+
+```{r}
+ScheffeTest(state_anova)
+```
+From the one-way ANOVA test, we concluded that there's a statistically significant different between the mean of the three states. However, the ANOVA test only tells us that not all group means are equal among the three states, it doesn't tell us which groups. To find out, we ran the Scheffe’s Test. 
+
+The results are as follows: 
+1. The mean difference in positivity covid rate between New York and Florida is -0.06 and it has a p-value of 0.30
+2. The mean difference in positivity covid rate between West Virginia and Florida is -0.02 and it has a p-value of 0.99
+3. The mean difference in positivity covid rate between Wisconsin and Florida is 0.24 and it has a p-value of 2.2e-08
+4. The mean difference in positivity covid rate between West Virginia and New York is 0.04 and it has a p-value of 0.95
+5. The mean difference in positivity covid rate between Wisconsin and New York is 0.30 and it has a p-value of 1.1e-11
+6. The mean difference in positivity covid rate between Wisconsin and West Virginia is 0.27 and it has a p-value of 0.0059
+
+There're a total of three groups that are statistically significant difference are 1) Wisconsin and Florida 2) Wisconsin and New York 3) Wisconsin and West Virginia. 
+
+# **Conclusion**
+
+While we can see some effects from the location of facilities (states) and the size, overall, the data performed disappointingly in the models and analysis conducted. This was likely due to the amount of missing variables/information on conditions and factors in prisons. Where the living quarters shared or solitary? How much interaction was there between staff and inmates? Where outside visitors permitted? 
+
+It is unlikely that more complicated models will answer the questions we set out to study. Understanding how to keep inmates safer and how to design or redesign better facilities moving forward will require better understanding what the conditions of the facilities were like to begin with.     
+
+# **Bibliography**
+
+Kabacoff, Robert. "R in Action." (2015) Manning Publications Co.
+
+https://support.minitab.com/en-us/minitab-express/1/help-and-how-to/modeling-statistics/anova/how-to/one-way-anova/interpret-the-results/key-results/ (retrieved 2.22)
+
+https://www.dataquest.io/blog/r-markdown-tips-tricks-and-shortcuts/
+
+how to use sklearn when target variable is a proportion. (retrieved 2.22) https://stackoverflow.com/questions/44234682/how-to-use-sklearn-when-target-variable-is-a-proportion 
+
+The log-0 problem: analysis strategies and options for choosing c in log(y + c)
+(September 19, 2018) https://aosmith.rbind.io/2018/09/19/the-log-0-proble
+
+Grace-Martin, Karen. "When to Use Logistic Regression for Percentages and Counts" (retrieved 2.22) https://www.theanalysisfactor.com/when-to-use-logistic-regression-for-percentages-and-counts/
+
+
+HOW DOES ONE DO REGRESSION WHEN THE DEPENDENT VARIABLE IS A PROPORTION? | STATA FAQ (retrieved 2.22) https://stats.oarc.ucla.edu/stata/faq/how-does-one-do-regression-when-the-dependent-variable-is-a-proportion/
+
+https://quantifyinghealth.com/square-root-transformation/
