@@ -201,6 +201,7 @@ summary(state_fit)
 ```{r}
 ggplot(new_data, aes(x=abs(max_inmate_population_2020), y=positivity_percentage, color=facility_type))+geom_point(alpha=0.3)+ geom_abline(intercept = 0.2814, slope = 1.175e-05, color="blue")+ geom_abline(intercept = 0.3499, slope=-1.660e-05, color='red')+labs(title="Facility Types and Positivity Percentage", y="Covid Positivity Percentage",x="Number of Inmates")
 ```
+
 The above graph shows that as the size of the prison grows, federal prisons perform better in terms of keeping covid rates lower. As an inmate, it is better to be in a state prison until the size exceeds approximately 2200 inmates. This is a fairly weak assertion, however, because the slopes of the regression lines are not dramatically positive and negative, and more critically, there are far fewer data points for federal prisons. It is possible that a few outliers or highly influential points are skewing the results.
 
 # **ANOVA**
