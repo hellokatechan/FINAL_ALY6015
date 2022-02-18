@@ -12,7 +12,6 @@ library(usethis)
 library(caret)
 #rm(list = ls()) 
 
-
 #data dictionary https://github.com/nytimes/covid-19-data/tree/master/prisons 
 data <- read_csv('https://raw.githubusercontent.com/nytimes/covid-19-data/master/prisons/facilities.csv')
 
@@ -66,6 +65,14 @@ summary(model_1)
 #calculate the RMSE for lm() model and use it to compare with regularized regression 
 # the smaller the RMSE, the better model fit 
 sqrt(mean(model_1$residuals^2))
+
+#What if we do a one-vraiable model to compare the RMSE and R^2 with 
+model <- lm(positivity_percentage ~ facility_type, data = clean_data)
+summary(model)
+
+#What if we do a one-vraiable model to compare the RMSE and R^2 with 
+model_3 <- lm(positivity_percentage ~ latest_inmate_population, data = clean_data)
+summary(model_3)
 
 #cleaning up the NAs in perperation for the regularized regression 
 colSums(is.na(clean_data))
@@ -230,3 +237,4 @@ clean_data2$facility_type.f <- droplevels(clean_data2$facility_type.f)
 plot(x = clean_data2$facility_type.f, y = clean_data2$total_inmate_cases, las=2)
 
 
+#test
